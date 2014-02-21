@@ -63,9 +63,7 @@ public class ClearBlockadeTool extends ScaleTool {
 			fmList.add(pList.get(1));
 			sfLine = ScaleGeo.pointsToLines(sfList).get(0);
 			fmLine = ScaleGeo.pointsToLines(fmList).get(0);
-			if(!ScaleGeo.parallel(sfLine, fmLine)){
-				
-			}
+			//TODO移动到置顶位置
 		}
 	}
 	
@@ -105,6 +103,14 @@ public class ClearBlockadeTool extends ScaleTool {
 		pList.add(midPoint);
 		pList.add(secondPoint);
 		return pList;
+	}
+	
+	private Point2D calcPoint(double Length,List<Point2D> pList){
+		double x1 = pList.get(0).getX();
+		double y1 = pList.get(0).getY();
+		double x2 = pList.get(1).getX();
+		double y2 = pList.get(1).getY();
+		
 	}
 	
 }
