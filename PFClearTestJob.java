@@ -26,13 +26,14 @@ import scale.tool.PF.ClearBlockadeTool;
 import scale.tool.map.area.AccessibleTool;
 import scale.tool.map.path.Path;
 import scale.tool.map.path.SearchPathTool;
+import scale.utils.geo.ScaleGeo;
 import scale.agent.command.*;
 
 public class PFClearTestJob extends ScaleJob<Human> {
 	private static final Log log = LogFactory.getLog(PFClearTestJob.class);
 	
 	private enum JobState {
-		Free,move,clean;
+		Free,move,clean,doclean;
 	}
 	
 	private JobState state;
@@ -143,8 +144,10 @@ public class PFClearTestJob extends ScaleJob<Human> {
 			int flag = cbTool.clearCondition(me.getPosition(),nextRoad);
 			switch(flag){
 			case 1:{
+				log.error("进入模式1");
 				clearList = cbTool.chooseDoublePosition(nextRoad, me.getPosition(), 
 													new Point2D(me.getX(),me.getY()));
+				pointToCLean.clear();
 				Point2D firstP = new Point2D(me.getX(),me.getY());
 				for(Point2D p:clearList){
 						if(cbTool.isInFirstRoad(p,me.getPosition(),nextRoad)){
@@ -159,6 +162,8 @@ public class PFClearTestJob extends ScaleJob<Human> {
 											.getMiscLayer()
 											.addPointCross(p, Color.green, 500);
 								}
+								int index = clearList.indexOf(p);
+								pointToCLean.add(clearList.get(index-1));
 							}
 							else{
 								if (agent.getAgentViewer() != null) {
@@ -181,6 +186,8 @@ public class PFClearTestJob extends ScaleJob<Human> {
 											.getMiscLayer()
 											.addPointCross(p, Color.green, 500);
 								}
+								int index = clearList.indexOf(p);
+								pointToCLean.add(clearList.get(index-1));
 							}
 							else{
 								if (agent.getAgentViewer() != null) {
@@ -192,6 +199,9 @@ public class PFClearTestJob extends ScaleJob<Human> {
 							firstP = p;
 						}
 				}
+				state = JobState.doclean;
+				log.error("此时状态"+state);
+				log.error("需要清理的点"+pointToCLean);
 				break;
 			}
 			case 2:{
@@ -233,9 +243,26 @@ public class PFClearTestJob extends ScaleJob<Human> {
 		if((state == JobState.move) && (!realList.isEmpty())){
 			return new MoveCommand(time,realList);
 		}
-//		else if((state == JobState.clean)){
-//			
-//		}
+		else if((state == JobState.doclean)&&(!pointToCLean.isEmpty())){
+			log.error("进入清理模式");
+			Point2D myPoint = new Point2D(me.getX(),me.getY());
+			log.error("我的点"+myPoint);
+			if(ScaleGeo.isSamePoint(myPoint, pointToCLean.get(0))){
+				int index = clearList.indexOf(pointToCLean.get(0));
+				pointToCLean.remove(0);
+				return new ClearXYCommand(time,(int)clearList.get(index+1).getX(),
+										 (int)clearList.get(index+1).getY());
+			}
+			else{
+				log.error("继续移动！");
+				return new MoveXYCommand(time,realList,pointToCLean.get(0));
+			}
+		}
+		else if((state == JobState.doclean)&&(pointToCLean.isEmpty())){
+			log.error("此段路清完！");
+			state = JobState.move;
+			return new MoveXYCommand(time,realList,-1,-1);
+		}
 		return null;
 	}
 

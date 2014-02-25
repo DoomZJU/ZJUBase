@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import rescuecore2.misc.geometry.Line2D;
 import rescuecore2.misc.geometry.Point2D;
 import rescuecore2.standard.entities.Blockade;
 import rescuecore2.standard.entities.Edge;
@@ -20,8 +21,6 @@ import scale.tool.ScaleToolURN;
 import scale.tool.map.jigsaw.CreateJigsawTool;
 import scale.tool.map.jigsaw.Cross;
 import scale.tool.map.jigsaw.Entrance;
-import scale.utils.geo.Point;
-import scale.utils.geo.Rectangle;
 import scale.utils.geo.ScaleGeo;
 
 public class ClearBlockadeTool extends ScaleTool {
@@ -155,28 +154,36 @@ public class ClearBlockadeTool extends ScaleTool {
 	
 	public List<Point2D> getPolygon(Point2D myPoint,
 			 						Point2D targetPoint){
-		int x = (int)(0.5*(myPoint.getX()+targetPoint.getX()));
-		int y = (int)(0.5*(myPoint.getY()+targetPoint.getY()));
-		Rectangle mySurf = new Rectangle(x,y,Max_dis,2*clearRad);
-		List<Point> vertex = mySurf.getPoints();
+		Line2D line = new Line2D(myPoint,targetPoint);
+		Line2D leftLine = ScaleGeo.getParallelLineLeft(line,clearRad);
+		Line2D rightLine = ScaleGeo.getParallelLineRight(line, clearRad);
+		Point2D p1 = leftLine.getOrigin();
+		Point2D p2 = leftLine.getEndPoint();
+		Point2D p3 = rightLine.getOrigin();
+		Point2D p4 = rightLine.getEndPoint();
 		List<Point2D> vertex2D = new ArrayList<Point2D>();
-		for(Point p:vertex){
-			vertex2D.add(new Point2D(p.getX(),p.getY()));
-		}
+		vertex2D.add(p1);
+		vertex2D.add(p2);
+		vertex2D.add(p4);
+		vertex2D.add(p3);
 		return vertex2D;
 	}
 	
 	public boolean isBlockadeInSurf(EntityID targetRoad,Point2D myPoint,
 									 Point2D targetPoint){
-		int x = (int)(0.5*(myPoint.getX()+targetPoint.getX()));
-		int y = (int)(0.5*(myPoint.getY()+targetPoint.getY()));
-		Rectangle mySurf = new Rectangle(x,y,Max_dis,2*clearRad);
+		Line2D line = new Line2D(myPoint,targetPoint);
+		Line2D leftLine = ScaleGeo.getParallelLineLeft(line,clearRad);
+		Line2D rightLine = ScaleGeo.getParallelLineRight(line, clearRad);
+		Point2D p1 = leftLine.getOrigin();
+		Point2D p2 = leftLine.getEndPoint();
+		Point2D p3 = rightLine.getOrigin();
+		Point2D p4 = rightLine.getEndPoint();
 		Road targetroad = (Road)model.getEntity(targetRoad);
-		List<Point> vertex = mySurf.getPoints();
 		List<Point2D> vertex2D = new ArrayList<Point2D>();
-		for(Point p:vertex){
-			vertex2D.add(new Point2D(p.getX(),p.getY()));
-		}
+		vertex2D.add(p1);
+		vertex2D.add(p2);
+		vertex2D.add(p4);
+		vertex2D.add(p3);
 		List<EntityID> blkList = targetroad.getBlockades();
 		List<Blockade> blokList = new ArrayList<Blockade>();
 		for(EntityID blk:blkList){
@@ -193,6 +200,11 @@ public class ClearBlockadeTool extends ScaleTool {
             }
             for(Point2D point:blkVertex){
             	if(ScaleGeo.inPolygon(vertex2D,point)){
+            		log.error("有路障在我的清障区域内");
+    				flag = 1;
+    				return true;
+            	}
+            	else{
             		for(Point2D p:vertex2D){
             			if(ScaleGeo.inPolygon(blkVertex,p)){
             				log.error("有路障在我的清障区域内");
