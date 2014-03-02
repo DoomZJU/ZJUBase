@@ -28,6 +28,7 @@ public class ClearBlockadeTool extends ScaleTool {
 	private CreateJigsawTool cjsTool;
 	private int Max_dis;
 	private int clearRad;
+	private Point2D gdP = null;
 
 	public ClearBlockadeTool() {
 		super(ScaleToolURN.ClearBlockadeTool);
@@ -223,6 +224,18 @@ public class ClearBlockadeTool extends ScaleTool {
 		}
 	}
 	
+	public EntityID isInBlockade(Point2D pos,Road road){
+		if(road.isBlockadesDefined()){
+			for(EntityID next : road.getBlockades()){
+				Blockade b=(Blockade)model.getEntity(next);
+				if(ScaleGeo.inPolygon(b.getApexes(), pos)){
+					return next;
+				}
+			}
+		}
+		return null;
+	}
+	
 	public boolean isInFirstRoad(Point2D point,EntityID myPos,EntityID targetID){
 		double x = point.getX();
 		List<Point2D> pList = getThreePoint(myPos,targetID);
@@ -237,6 +250,117 @@ public class ClearBlockadeTool extends ScaleTool {
 		else{
 			return false;
 		}
+	}
+	
+	public Point2D inLineP(Point2D srcP,Point2D targetP,Blockade blk){
+		double x0 = srcP.getX();
+		double y0 = srcP.getY();
+		double x1 = targetP.getX();
+		double y1 = targetP.getY();
+		double R = this.clearRad;
+		double L = ScaleGeo.getDistance(srcP, targetP);
+		double coss = R/L;
+		double sins = Math.sin(Math.acos(coss));
+		double tans = Math.tan(Math.acos(coss));
+		double l = R*sins;
+		double AD = l*tans;
+		double Xd = x1-AD*(x1-x0)/L;
+		double Yd = y1-AD*(y1-y0)/L;
+		double kab = (y1-y0)/(x1-x0);
+		double kcd = -1/kab;
+		double x = Xd + Math.sqrt(l*l/(1+kcd*kcd));
+		double y = kcd*(x-Xd)+Yd;
+		if(ScaleGeo.inPolygon(blk.getApexes(), new Point2D(x,y))){
+			x =  Xd - Math.sqrt(l*l/(1+kcd*kcd));
+			y = kcd*(x-Xd)+Yd;
+		}
+		gdP = new Point2D(x,y);
+		log.error("过度点"+gdP);
+		Line2D line = new Line2D(srcP,gdP);
+		Point2D reso = ScaleGeo.getParallelLineLeft(line, L).getOrigin();
+		Point2D rese = ScaleGeo.getParallelLineLeft(line, L).getOrigin();
+		if(reso.equals(new Point2D(x1,y1))){
+			return rese;
+		}
+		else{
+			return reso;
+		}
+//		double xx = x1-Math.sqrt(R*R/(1+Math.pow((y-y0)/(x-x0), 2)));
+//		double yy = y1+(xx-x1)*(y-y0)/(x-x0);
+//		if(ScaleGeo.inPolygon(blk.getApexes(), new Point2D(xx,yy))){
+//			xx = x1-Math.sqrt(R*R/(1+Math.pow((y-y0)/(x-x0), 2)));
+//			yy = y1+(xx-x1)*(y-y0)/(x-x0);
+//		}
+//		return new Point2D(xx,yy); 
+	}
+	
+	public double p2lDis(Point2D p,Point2D src,Point2D end){
+		double x0 = src.getX();
+		double y0 = src.getY();
+		double x1 = end.getX();
+		double y1 = end.getY();
+		double x = p.getX();
+		double y = p.getY();
+		double k = (x1-x0)/(y1-y0);
+		double b = y0-k*x0;
+		double dis = Math.abs(k*x-y+b)/Math.sqrt(1+k*k);
+		return dis;
+	}
+	
+	public Point2D fixP(Point2D srcP,Point2D targetP){
+		double x1 = srcP.getX();
+		double y1 = srcP.getY();
+		double x2 = targetP.getX();
+		double y2 = targetP.getY();
+		double length = ScaleGeo.getDistance(srcP, targetP);
+		double delta = Max_dis - length;
+		double y = y2+Math.sqrt(delta*delta/(1+((x2-x1)/(y2-y1))*((x2-x1)/(y2-y1))));
+		if(((y>y1)&&(y<y2))||((y<y1)&&(y>y2))){
+			y = y2-Math.sqrt(delta*delta/(1+((x2-x1)/(y2-y1))*((x2-x1)/(y2-y1))));
+		}
+		double x = (y-y2)*(x2-x1)/(y2-y1)+x2;
+		return new Point2D(x,y);
+	}
+	
+	public Point2D relongP(Point2D srcP,Point2D targetP){
+		double x1 = srcP.getX();
+		double y1 = srcP.getY();
+		double x2 = targetP.getX();
+		double y2 = targetP.getY();
+		double y = y1+Math.sqrt(Max_dis*Max_dis/(1+((x2-x1)/(y2-y1))*((x2-x1)/(y2-y1))));
+		if(!((y>y1)&&(y<y2))||((y<y1)&&(y>y2))){
+			y = y1-Math.sqrt(Max_dis*Max_dis/(1+((x2-x1)/(y2-y1))*((x2-x1)/(y2-y1))));
+		}
+		double x = (y-y1)*(x2-x1)/(y2-y1)+x1;
+		return new Point2D(x,y);
+	}
+	
+	public Point2D parrlP(Point2D myP,Point2D srcP,Point2D targetP){
+		double x0 = myP.getX();
+		double y0 = myP.getY();
+		double x1 = srcP.getX();
+		double y1 = srcP.getY();
+		double x2 = targetP.getX();
+		double y2 = targetP.getY();
+		double y = y0+Math.sqrt(Max_dis*Max_dis/(1+((x2-x1)/(y2-y1))*((x2-x1)/(y2-y1))));
+		double x = (y-y0)*(x2-x1)/(y2-y1)+x0;
+		if((((x2-x1)/(y2-y1))<0 && ((x-x0)/(y-y0))>0) || (((x2-x1)/(y2-y1))>0 && ((x-x0)/(y-y0))<0)){
+			y = y0-Math.sqrt(Max_dis*Max_dis/(1+((x2-x1)/(y2-y1))*((x2-x1)/(y2-y1))));
+		}
+		x = (y-y0)*(x2-x1)/(y2-y1)+x0;
+		return new Point2D(x,y);
+	}
+	
+	public double getMaxDis(){
+		return this.Max_dis;
+	}
+	
+	public double getClearRad(){
+		return this.clearRad;
+	}
+	
+	public Point2D getGdP(){
+		return this.gdP;
 	}
 	
 	private boolean needTotallyClear(EntityID roadID){
